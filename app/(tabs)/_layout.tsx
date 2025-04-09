@@ -21,6 +21,16 @@ export default function TabLayout() {
             <Ionicons name="search" size={size} color={color} />
           )
         }} 
+      />      
+      
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications" size={size} color={color} />
+          )
+        }}
       />
       <Tabs.Screen 
         name="profile" 
@@ -30,7 +40,9 @@ export default function TabLayout() {
             <Ionicons name="person" size={size} color={color} />
           )
         }} 
+        
       />
+
     </Tabs>
   );
 }
