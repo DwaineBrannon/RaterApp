@@ -1,57 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  Image, 
-  StyleSheet, 
-  Pressable, 
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  StyleSheet,
+  Pressable,
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { TabView, SceneMap, 
-  TabBar, 
-  NavigationState, 
-  SceneRendererProps,
-  Route } from 'react-native-tab-view';
+import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// TypeScript type definitions for the component
-interface TabRoute{
-  key: string;
-  title: string;
-}
-// Notification type definitions
-interface Notification {
-  id: string;
-  type: 'reply' | 'like' | 'quote' | 'release';
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  groupedCount?: number;
-  replyPreview?: {
-    username: string;
-    postContent: string;
-    profilePicUri: string;
-  };
-  likePreview?: {
-    displayName: string;
-    profilePicUri: string;
-    likedPostContent: string;
-    users?: Array<{displayName: string, profilePicUri: string}>;
-  };
-  releasePreview?: {
-    artistName: string;
-    albumName: string;
-    albumArtUri: string;
-    releaseDate: string;
-  };
-}
-
-// Sample data - moved out of the component to prevent recreation on renders
-const sampleNotifications: Notification[] = [
+// Sample notification data
+const sampleNotifications = [
   {
     id: '1',
     type: 'like',
@@ -64,11 +28,11 @@ const sampleNotifications: Notification[] = [
       profilePicUri: 'https://picsum.photos/50',
       likedPostContent: 'This is a preview of the liked post content.',
       users: [
-        {displayName: 'Charlie', profilePicUri: 'https://picsum.photos/50'},
-        {displayName: 'Sam', profilePicUri: 'https://picsum.photos/51'},
-        {displayName: 'Alex', profilePicUri: 'https://picsum.photos/52'},
-        {displayName: 'Jordan', profilePicUri: 'https://picsum.photos/53'},
-        {displayName: 'Taylor', profilePicUri: 'https://picsum.photos/54'},
+        { displayName: 'Charlie', profilePicUri: 'https://picsum.photos/50' },
+        { displayName: 'Sam', profilePicUri: 'https://picsum.photos/51' },
+        { displayName: 'Alex', profilePicUri: 'https://picsum.photos/52' },
+        { displayName: 'Jordan', profilePicUri: 'https://picsum.photos/53' },
+        { displayName: 'Taylor', profilePicUri: 'https://picsum.photos/54' },
       ]
     },
   },
@@ -119,14 +83,12 @@ const sampleNotifications: Notification[] = [
   },
 ];
 
-// Simple utility function
-const formatRelativeTime = (timestamp: string) => timestamp;
+const formatRelativeTime = timestamp => timestamp;
 
-// Component for rendering rating buttons - extracted to prevent re-renders
-const RatingButtons = React.memo(({ albumName }: { albumName?: string }) => (
+const RatingButtons = React.memo(({ albumName }) => (
   <View style={styles.ratingButtons}>
     {[1, 2, 3, 4, 5].map(rating => (
-      <TouchableOpacity 
+      <TouchableOpacity
         key={rating}
         style={styles.ratingButton}
         onPress={() => console.log(`Rated ${rating} stars for ${albumName}`)}
@@ -137,7 +99,6 @@ const RatingButtons = React.memo(({ albumName }: { albumName?: string }) => (
   </View>
 ));
 
-// Component for reply actions - extracted for performance
 const ReplyActions = React.memo(() => (
   <View style={styles.replyActions}>
     <Pressable
@@ -171,22 +132,20 @@ const ReplyActions = React.memo(() => (
   </View>
 ));
 
-// Empty state component - extracted for better code organization
-const EmptyNotifications = React.memo(({ tabIndex }: { tabIndex: number }) => (
+const EmptyNotifications = React.memo(({ tabIndex }) => (
   <View style={styles.emptyContainer}>
     <Ionicons name="notifications-off-outline" size={50} color="#ccc" />
     <Text style={styles.emptyText}>No notifications to show</Text>
     <Text style={styles.emptySubtext}>
       {tabIndex === 0 
-        ? "You'll see activity related to your posts and new music releases here" 
+        ? "You'll see activity related to your posts and new music releases here"
         : tabIndex === 1 
-        ? "No mentions to show yet" 
+        ? "No mentions to show yet"
         : "No new releases to show yet"}
     </Text>
   </View>
 ));
 
-// Loading footer component
 const FooterLoader = React.memo(() => (
   <View style={styles.footerLoader}>
     <ActivityIndicator size="small" color="#0073ff" />
@@ -194,44 +153,37 @@ const FooterLoader = React.memo(() => (
   </View>
 ));
 
-interface NotificationsScreenProps {}
-
-const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
+function NotificationsScreen() {
   const layout = useWindowDimensions();
-  
   const [index, setIndex] = useState(0);
-  const [routes] = useState<TabRoute[]>([
+  const [routes] = useState([
     { key: 'all', title: 'All' },
     { key: 'mentions', title: 'Mentions' },
     { key: 'releases', title: 'Releases' }
   ]);
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Memoized filtered data for each tab to prevent recalculating on every render
-  const mentionsData = useMemo(() => 
+  const mentionsData = useMemo(() =>
     notifications.filter(item => item.type === 'reply'),
     [notifications]
   );
   
-  const releasesData = useMemo(() => 
+  const releasesData = useMemo(() =>
     notifications.filter(item => item.type === 'release'),
     [notifications]
   );
 
-  const loadNotifications = useCallback((pageNum: number = 1, refresh: boolean = false) => {
+  const loadNotifications = useCallback((pageNum = 1, refresh = false) => {
     setLoading(true);
-    
-    // Simulate API call with timeout
     setTimeout(() => {
       if (pageNum === 1) {
         setNotifications(refresh ? [] : sampleNotifications);
       } else if (pageNum === 2) {
-        // Create unique IDs for pagination
         setNotifications(prev => [...prev, ...sampleNotifications.map(n => ({
           ...n,
           id: `${Date.now()}-${n.id}`,
@@ -240,7 +192,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
       } else {
         setHasMore(false);
       }
-      
       setLoading(false);
       setRefreshing(false);
     }, 1000);
@@ -265,30 +216,26 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     }
   }, [loading, hasMore, page, loadNotifications]);
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, isRead: true } 
+  const markAsRead = useCallback(id => {
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === id
+          ? { ...notification, isRead: true }
           : notification
       )
     );
   }, []);
 
-  const renderLikePreview = useCallback(({ likePreview, groupedCount }: Pick<Notification, 'likePreview' | 'groupedCount'>) => {
+  const renderLikePreview = useCallback(({ likePreview, groupedCount }) => {
     if (!likePreview) return null;
-    
     return (
       <View style={styles.likePreview}>
         <View style={styles.likersContainer}>
           {likePreview.users && likePreview.users.slice(0, 3).map((user, index) => (
-            <Image 
+            <Image
               key={index}
-              source={{ uri: user.profilePicUri }} 
-              style={[
-                styles.likeProfilePic, 
-                { marginLeft: index > 0 ? -15 : 0 }
-              ]} 
+              source={{ uri: user.profilePicUri }}
+              style={[styles.likeProfilePic, { marginLeft: index > 0 ? -15 : 0 }]}
             />
           ))}
           {groupedCount && groupedCount > 3 && (
@@ -304,9 +251,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     );
   }, []);
 
-  const renderReplyPreview = useCallback(({ replyPreview }: Pick<Notification, 'replyPreview'>) => {
+  const renderReplyPreview = useCallback(({ replyPreview }) => {
     if (!replyPreview) return null;
-    
     return (
       <>
         <View style={styles.replyPreview}>
@@ -321,15 +267,11 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     );
   }, []);
 
-  const renderReleasePreview = useCallback(({ releasePreview }: Pick<Notification, 'releasePreview'>) => {
+  const renderReleasePreview = useCallback(({ releasePreview }) => {
     if (!releasePreview) return null;
-    
     return (
       <View style={styles.releasePreview}>
-        <Image 
-          source={{ uri: releasePreview.albumArtUri }} 
-          style={styles.albumArt} 
-        />
+        <Image source={{ uri: releasePreview.albumArtUri }} style={styles.albumArt} />
         <View style={styles.releaseTextContainer}>
           <Text style={styles.artistName}>{releasePreview.artistName}</Text>
           <Text style={styles.albumName}>{releasePreview.albumName}</Text>
@@ -340,8 +282,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     );
   }, []);
 
-  const renderNotification = useCallback(({ item }: { item: Notification }) => {
-    let iconName: 'chatbubble' | 'heart' | 'quote' | 'musical-notes' | 'notifications' | '' | 'git-compare-outline' = '';
+  const renderNotification = useCallback(({ item }) => {
+    let iconName = '';
     let extraContent = null;
 
     const handlePress = () => {
@@ -373,26 +315,20 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     if (item.type !== 'reply') {
       return (
         <Pressable
-          style={[
-            styles.notificationItem, 
-            !item.isRead && styles.unreadNotification
-          ]}
+          style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}
           android_ripple={{ color: '#ddd' }}
           onPress={handlePress}
         >
           {iconName !== '' && (
-            <Ionicons 
-              name={iconName} 
-              size={24} 
-              color={!item.isRead ? "#0073ff" : "black"} 
-              style={styles.notificationIcon} 
+            <Ionicons
+              name={iconName}
+              size={24}
+              color={!item.isRead ? "#0073ff" : "black"}
+              style={styles.notificationIcon}
             />
           )}
           <View style={styles.notificationContent}>
-            <Text style={[
-              styles.notificationMessage,
-              !item.isRead && styles.unreadText
-            ]}>
+            <Text style={[styles.notificationMessage, !item.isRead && styles.unreadText]}>
               {item.message}
             </Text>
             {extraContent}
@@ -404,15 +340,9 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
       );
     } else {
       return (
-        <View style={[
-          styles.notificationItem,
-          !item.isRead && styles.unreadNotification
-        ]}>
+        <View style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}>
           <View style={styles.notificationContent}>
-            <Text style={[
-              styles.notificationMessage,
-              !item.isRead && styles.unreadText
-            ]}>
+            <Text style={[styles.notificationMessage, !item.isRead && styles.unreadText]}>
               {item.message}
             </Text>
             {extraContent}
@@ -425,16 +355,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     }
   }, [markAsRead, renderLikePreview, renderReplyPreview, renderReleasePreview]);
 
-  // Create memoized render functions for the tabs to prevent re-renders
   const AllTab = useCallback(() => (
     <FlatList
       data={notifications}
-      keyExtractor={(item) => `all-${item.id}`}
+      keyExtractor={item => `all-${item.id}`}
       renderItem={renderNotification}
-      contentContainerStyle={[
-        styles.listContainer,
-        notifications.length === 0 && { flex: 1 }
-      ]}
+      contentContainerStyle={[styles.listContainer, notifications.length === 0 && { flex: 1 }]}
       ListEmptyComponent={<EmptyNotifications tabIndex={0} />}
       ListFooterComponent={loading && !refreshing ? <FooterLoader /> : null}
       onRefresh={handleRefresh}
@@ -451,12 +377,9 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
   const MentionsTab = useCallback(() => (
     <FlatList
       data={mentionsData}
-      keyExtractor={(item) => `mentions-${item.id}`}
+      keyExtractor={item => `mentions-${item.id}`}
       renderItem={renderNotification}
-      contentContainerStyle={[
-        styles.listContainer,
-        mentionsData.length === 0 && { flex: 1 }
-      ]}
+      contentContainerStyle={[styles.listContainer, mentionsData.length === 0 && { flex: 1 }]}
       ListEmptyComponent={<EmptyNotifications tabIndex={1} />}
       ListFooterComponent={loading && !refreshing ? <FooterLoader /> : null}
       onRefresh={handleRefresh}
@@ -473,12 +396,9 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
   const ReleasesTab = useCallback(() => (
     <FlatList
       data={releasesData}
-      keyExtractor={(item) => `releases-${item.id}`}
+      keyExtractor={item => `releases-${item.id}`}
       renderItem={renderNotification}
-      contentContainerStyle={[
-        styles.listContainer,
-        releasesData.length === 0 && { flex: 1 }
-      ]}
+      contentContainerStyle={[styles.listContainer, releasesData.length === 0 && { flex: 1 }]}
       ListEmptyComponent={<EmptyNotifications tabIndex={2} />}
       ListFooterComponent={loading && !refreshing ? <FooterLoader /> : null}
       onRefresh={handleRefresh}
@@ -498,31 +418,21 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
     releases: ReleasesTab,
   });
 
-  const renderTabBar = useCallback((props: SceneRendererProps & {
-    navigationState: NavigationState<TabRoute>;
-  }) => (
+  const renderTabBar = useCallback(props => (
     <TabBar
       {...props}
       indicatorStyle={styles.tabIndicator}
       style={styles.tabBar}
       activeColor="#0073ff"
       inactiveColor="#777"
-      // I think renderLabel has a type error but i'm too lazy to fix it
-    
-      renderLabel={({ route, focused}: {
-        route: TabRoute;
-        focused: boolean;
-        color: string;
-      }) => (
-        <Text style={[
-          styles.tabLabel,
-          { color: focused ? "#0073ff" : "#777" }
-        ]}>
+      renderLabel={({ route, focused }) => (
+        <Text style={[styles.tabLabel, { color: focused ? "#0073ff" : "#777" }]}>
           {route.title}
         </Text>
       )}
     />
   ), []);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.container}>
@@ -537,9 +447,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = () => {
       </View>
     </SafeAreaView>
   );
-};
+}
 
-// Styles extracted outside component to prevent recreation on renders
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -754,7 +663,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
-  
 });
 
 export default React.memo(NotificationsScreen);
